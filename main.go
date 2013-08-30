@@ -24,6 +24,7 @@ import (
 )
 
 var (
+	version   *bool   = flag.Bool("version", false, "The version number")
 	verbose   *bool   = flag.Bool("v", false, "Verbosity")
 	multiline *bool   = flag.Bool("m", false, "Creates a new job for each line")
 	host      *string = flag.String("host", "127.0.0.1:11300", "The host address and port")
@@ -37,6 +38,11 @@ func main() {
 	log.SetFlags(log.Lshortfile)
 	log.SetPrefix("beanc:")
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("%d.%d\n", VERSION_MAJOR, VERSION_MINOR)
+		os.Exit(1)
+	}
 
 	if *verbose {
 		fmt.Println("Verbose")
