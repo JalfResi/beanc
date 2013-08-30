@@ -6,7 +6,11 @@ package main
    Allows two modes of operation: push and pull.
 
    Push: Reads from stdin pipe and writes it to the specified beanstalkd tube
-   Pull: Blocks and reserves a job from beanstalkd. Once read, it deletes the job from the specified tube.
+   Pull: Blocks and reserves a job from beanstalkd. Once read, it deletes the
+   job from the specified tube.
+
+   Push supports the -m option. Setting this will cause beanc to process each
+   line on STDIN as a seperate job rather than as one whole job (the default)
 
 */
 import (
@@ -20,12 +24,13 @@ import (
 )
 
 var (
-	verbose *bool   = flag.Bool("v", false, "Verbosity")
-	host    *string = flag.String("host", "127.0.0.1:11300", "The host address and port")
-	tube    *string = flag.String("tube", "default", "The tube to use or watch, depending on the action")
-	pri     *int    = flag.Int("pri", 0, "The job priority, used when pushing")
-	delay   *int    = flag.Int("delay", 0, "The job delay, used when pushing")
-	ttr     *int    = flag.Int("ttr", 10, "The job ttr, used when pushing")
+	verbose   *bool   = flag.Bool("v", false, "Verbosity")
+	multiline *bool   = flag.Bool("m", false, "Creates a new job for each line")
+	host      *string = flag.String("host", "127.0.0.1:11300", "The host address and port")
+	tube      *string = flag.String("tube", "default", "The tube to use or watch, depending on the action")
+	pri       *int    = flag.Int("pri", 0, "The job priority, used when pushing")
+	delay     *int    = flag.Int("delay", 0, "The job delay, used when pushing")
+	ttr       *int    = flag.Int("ttr", 10, "The job ttr, used when pushing")
 )
 
 func main() {
@@ -78,10 +83,23 @@ func pushCommand(conn *gobeanstalk.Conn) {
 		fmt.Println(string(data))
 	}
 
-	_, err = conn.Put(data, *pri, *delay, *ttr)
-	if err != nil {
-		log.Println("Put failed")
-		log.Fatal(err)
+	var dataset []string
+	if *multiline == true {
+		dataset = strings.Split(string(data), "\n")
+	} else {
+		dataset = append(dataset, string(data))
+	}
+
+	for _, job := range dataset {
+		if len(job) == 0 { // Skip blank lines
+			continue
+		}
+
+		_, err = conn.Put([]byte(job), *pri, *delay, *ttr)
+		if err != nil {
+			log.Println("Put failed")
+			log.Fatal(err)
+		}
 	}
 }
 
